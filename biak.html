@@ -3,278 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Layanan Publik Biak Numfor</title>
+    <title>Portal Informasi Layanan Publik Biak Numfor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
+<body class="bg-gray-50 min-h-screen">
 
     <!-- Header -->
     <header class="bg-blue-700 text-white py-8 px-4 shadow-lg">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-3xl font-bold">Portal Biak Numfor</h1>
-                <p class="text-blue-100">Pencarian Kantor OPD, Distrik, Kelurahan, & Puskesmas</p>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="syncData()" id="syncBtn" class="bg-blue-500 hover:bg-blue-400 px-6 py-2 rounded-full font-semibold transition flex items-center gap-2">
-                    <span id="syncIcon">🔄</span> Sinkronisasi Google Map
-                </button>
-            </div>
+        <div class="max-w-6xl mx-auto text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Portal Layanan Publik Biak Numfor</h1>
+            <p class="text-blue-100 italic">Pencarian Lokasi & Alamat Terintegrasi Data Google Maps</p>
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto p-4 md:p-8">
-        <!-- Filter Kategori -->
-        <div class="flex flex-wrap gap-3 mb-8">
-            <button onclick="filterCategory('all')" class="cat-btn active bg-blue-600 text-white px-5 py-2 rounded-lg shadow">Semua</button>
-            <button onclick="filterCategory('OPD')" class="cat-btn bg-white text-slate-700 px-5 py-2 rounded-lg shadow hover:bg-blue-50">Kantor OPD</button>
-            <button onclick="filterCategory('Distrik')" class="cat-btn bg-white text-slate-700 px-5 py-2 rounded-lg shadow hover:bg-blue-50">Kantor Distrik</button>
-            <button onclick="filterCategory('Kelurahan')" class="cat-btn bg-white text-slate-700 px-5 py-2 rounded-lg shadow hover:bg-blue-50">Kelurahan</button>
-            <button onclick="filterCategory('Puskesmas')" class="cat-btn bg-white text-slate-700 px-5 py-2 rounded-lg shadow hover:bg-blue-50">Puskesmas</button>
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Search Controls -->
+        <div class="glass p-6 rounded-2xl shadow-sm mb-8 border border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button onclick="fetchData('Kantor OPD Dinas Kabupaten Biak Numfor')" class="bg-white hover:bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col items-center transition-all">
+                    <span class="text-2xl mb-2">🏛️</span>
+                    <span class="font-semibold text-gray-700">Kantor OPD</span>
+                </button>
+                <button onclick="fetchData('Kantor Distrik dan Kelurahan di Biak Numfor')" class="bg-white hover:bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col items-center transition-all">
+                    <span class="text-2xl mb-2">🏡</span>
+                    <span class="font-semibold text-gray-700">Distrik & Kelurahan</span>
+                </button>
+                <button onclick="fetchData('Puskesmas di Kabupaten Biak Numfor')" class="bg-white hover:bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col items-center transition-all">
+                    <span class="text-2xl mb-2">🏥</span>
+                    <span class="font-semibold text-gray-700">Puskesmas</span>
+                </button>
+                <button onclick="fetchData('Fasilitas Publik Umum di Biak Numfor (Pasar, Pelabuhan, Bandara)')" class="bg-white hover:bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col items-center transition-all">
+                    <span class="text-2xl mb-2">📍</span>
+                    <span class="font-semibold text-gray-700">Fasilitas Umum</span>
+                </button>
+            </div>
+            
+            <div class="mt-6 flex gap-2">
+                <input type="text" id="customSearch" placeholder="Cari spesifik (misal: RSUD Biak)..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <button onclick="handleCustomSearch()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700">Cari</button>
+            </div>
         </div>
 
-        <!-- Konten Utama -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Daftar Lokasi -->
-            <div class="lg:col-span-2 space-y-4">
-                <div id="loadingStatus" class="hidden p-4 bg-yellow-100 text-yellow-800 rounded-lg animate-pulse">
-                    Sedang mencari data terbaru dari Google Map...
-                </div>
-                <div id="locationList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Data akan muncul di sini -->
-                </div>
-            </div>
+        <!-- Status & Results -->
+        <div id="status" class="hidden flex items-center justify-center gap-3 p-4 text-gray-600 mb-4">
+            <div class="loader"></div>
+            <span>Menghubungkan ke Google Maps via Gemini...</span>
+        </div>
 
-            <!-- Form Tambah/Update Manual -->
-            <div class="lg:col-span-1">
-                <div class="glass p-6 rounded-2xl shadow-xl sticky top-8 border border-slate-200">
-                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-                        <span>📝</span> Perbarui Data
-                    </h2>
-                    <form id="updateForm" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-600">Nama Kantor/Tempat</label>
-                            <input type="text" id="nameInput" required class="w-full p-2 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-600">Kategori</label>
-                            <select id="categoryInput" class="w-full p-2 border border-slate-300 rounded-lg mt-1">
-                                <option value="OPD">Kantor OPD</option>
-                                <option value="Distrik">Kantor Distrik</option>
-                                <option value="Kelurahan">Kelurahan</option>
-                                <option value="Puskesmas">Puskesmas</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-600">Alamat</label>
-                            <textarea id="addressInput" rows="2" class="w-full p-2 border border-slate-300 rounded-lg mt-1"></textarea>
-                        </div>
-                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">
-                            Simpan ke Daftar
-                        </button>
-                    </form>
-                </div>
+        <div id="results" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Data will be injected here -->
+            <div class="col-span-full text-center py-20 text-gray-400">
+                <p>Pilih kategori di atas untuk memuat data lokasi terbaru.</p>
             </div>
-
         </div>
     </main>
 
     <script>
-        // Gunakan string kosong, sistem akan menyuntikkan kunci saat runtime
-        const apiKey = "AIzaSyACi6b4h8g4GXpGgWfLrzUYPHP-Mx2wtmw"; 
-        let localData = JSON.parse(localStorage.getItem('biak_portal_data')) || [];
-        let currentFilter = 'all';
+        const apiKey = ""; // Runtime environment handles this
 
-        // Inisialisasi data awal jika kosong
-        if (localData.length === 0) {
-            localData = [
-                { id: 1, name: "Dinas Kesehatan Biak Numfor", category: "OPD", address: "Jl. Majapahit, Biak", source: "Sistem" },
-                { id: 2, name: "Puskesmas Biak Kota", category: "Puskesmas", address: "Jl. Imam Bonjol, Biak", source: "Sistem" },
-                { id: 3, name: "Kantor Distrik Biak Kota", category: "Distrik", address: "Biak Kota", source: "Sistem" }
-            ];
-            saveData();
-        }
-
-        function saveData() {
-            localStorage.setItem('biak_portal_data', JSON.stringify(localData));
-            renderData();
-        }
-
-        function renderData() {
-            const list = document.getElementById('locationList');
-            list.innerHTML = '';
-
-            const filtered = currentFilter === 'all' 
-                ? localData 
-                : localData.filter(item => item.category === currentFilter);
-
-            if (filtered.length === 0) {
-                list.innerHTML = `<div class="col-span-full p-8 text-center text-slate-400 italic">Tidak ada data ditemukan. Klik sinkronisasi untuk mencari.</div>`;
-                return;
-            }
-
-            filtered.forEach(item => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition";
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-blue-100 text-blue-700">${item.category}</span>
-                        <button onclick="deleteItem(${item.id})" class="text-slate-300 hover:text-red-500 text-sm">Hapus</button>
-                    </div>
-                    <h3 class="font-bold text-lg text-slate-800">${item.name}</h3>
-                    <p class="text-sm text-slate-500 mt-2 flex items-start gap-2">
-                        <span>📍</span> ${item.address || 'Alamat tidak tersedia'}
-                    </p>
-                    <div class="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
-                        <span class="text-[10px] text-slate-400">Sumber: ${item.source}</span>
-                        <a href="https://www.google.com/maps/search/${encodeURIComponent(item.name + ' Biak Numfor')}" target="_blank" class="text-xs text-blue-600 font-semibold hover:underline">Buka Maps →</a>
-                    </div>
-                `;
-                list.appendChild(card);
-            });
-        }
-
-        function filterCategory(cat) {
-            currentFilter = cat;
-            document.querySelectorAll('.cat-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'shadow');
-                btn.classList.add('bg-white', 'text-slate-700');
-            });
-            event.target.classList.add('bg-blue-600', 'text-white', 'shadow');
-            renderData();
-        }
-
-        const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-
-        async function syncData() {
-            const btn = document.getElementById('syncBtn');
-            const loading = document.getElementById('loadingStatus');
-            btn.disabled = true;
-            loading.classList.remove('hidden');
+        async function fetchData(query) {
+            const resultsContainer = document.getElementById('results');
+            const statusIndicator = document.getElementById('status');
             
-            // Query pencarian dengan Google Grounding
-            const prompt = "Temukan daftar kantor OPD, kantor distrik, kelurahan, dan puskesmas di Kabupaten Biak Numfor. Berikan hasil dalam format JSON array of objects dengan field: name, category (OPD/Distrik/Kelurahan/Puskesmas), dan address.";
+            resultsContainer.innerHTML = '';
+            statusIndicator.classList.remove('hidden');
 
-            let success = false;
-            let retries = 5;
-            let delay = 1000;
+            const systemPrompt = `Anda adalah asisten data geografis Kabupaten Biak Numfor. 
+            Gunakan Google Search untuk menemukan daftar alamat dan lokasi lengkap.
+            Format output HARUS selalu berupa JSON Array of Objects dengan struktur:
+            [{"nama": "...", "alamat": "...", "deskripsi": "...", "link_map": "..."}]
+            Fokus hanya pada entitas yang ada di Kabupaten Biak Numfor.`;
 
-            while (retries > 0 && !success) {
+            let retries = 0;
+            const maxRetries = 5;
+
+            async function makeRequest() {
                 try {
-                    // Endpoint resmi yang didukung dengan model spesifik
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                    
-                    const response = await fetch(url, {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            contents: [{ 
-                                parts: [{ text: prompt }] 
-                            }],
+                            contents: [{ parts: [{ text: `Temukan daftar lokasi terbaru untuk: ${query} di Kabupaten Biak Numfor.` }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] },
                             tools: [{ "google_search": {} }],
-                            generationConfig: { 
-                                responseMimeType: "application/json",
-                                responseSchema: {
-                                    type: "ARRAY",
-                                    items: {
-                                        type: "OBJECT",
-                                        properties: {
-                                            name: { type: "STRING" },
-                                            category: { type: "STRING" },
-                                            address: { type: "STRING" }
-                                        },
-                                        required: ["name", "category", "address"]
-                                    }
-                                }
-                            }
+                            generationConfig: { responseMimeType: "application/json" }
                         })
                     });
 
-                    if (response.status === 401) {
-                        throw new Error("Autentikasi gagal (401). Pastikan kunci API valid atau lingkungan mendukung injeksi otomatis.");
-                    }
+                    if (!response.ok) throw new Error('API Error');
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP Error: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    const data = await response.json();
+                    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    const parsedData = JSON.parse(textContent);
                     
-                    if (!textContent) throw new Error("Format respons tidak valid");
-
-                    const newData = JSON.parse(textContent);
-
-                    if (Array.isArray(newData)) {
-                        newData.forEach(newItem => {
-                            const exists = localData.some(d => d.name.toLowerCase() === newItem.name.toLowerCase());
-                            if (!exists) {
-                                localData.push({
-                                    id: Date.now() + Math.random(),
-                                    ...newItem,
-                                    source: "Google Map Sync"
-                                });
-                            }
-                        });
-                        saveData();
-                        success = true;
-                    }
-
+                    displayResults(parsedData);
                 } catch (error) {
-                    console.error(`Gagal sinkronisasi: ${error.message}`);
-                    retries--;
-                    if (retries === 0) {
-                        showErrorMessage(error.message.includes("401") 
-                            ? "Kunci API tidak valid atau belum diset. Harap hubungi administrator." 
-                            : "Gagal menghubungkan ke layanan Google Maps.");
+                    if (retries < maxRetries) {
+                        retries++;
+                        const delay = Math.pow(2, retries) * 500;
+                        setTimeout(makeRequest, delay);
                     } else {
-                        await sleep(delay);
-                        delay *= 2;
+                        statusIndicator.classList.add('hidden');
+                        resultsContainer.innerHTML = `<div class="col-span-full bg-red-50 text-red-600 p-4 rounded-lg text-center border border-red-200">Gagal memuat data. Silakan coba sesaat lagi.</div>`;
                     }
                 }
             }
 
-            btn.disabled = false;
-            loading.classList.add('hidden');
+            makeRequest();
         }
 
-        function showErrorMessage(msg) {
-            const errorBox = document.createElement('div');
-            errorBox.className = "fixed bottom-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-xl z-50 transition-opacity duration-500 max-w-sm";
-            errorBox.innerHTML = `<div class="font-bold mb-1">Kesalahan</div><div>${msg}</div>`;
-            document.body.appendChild(errorBox);
-            setTimeout(() => {
-                errorBox.style.opacity = '0';
-                setTimeout(() => errorBox.remove(), 500);
-            }, 5000);
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('results');
+            const statusIndicator = document.getElementById('status');
+            statusIndicator.classList.add('hidden');
+
+            if (!data || data.length === 0) {
+                resultsContainer.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400">Data tidak ditemukan untuk area Biak Numfor.</div>`;
+                return;
+            }
+
+            resultsContainer.innerHTML = data.map(item => `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <h3 class="font-bold text-xl text-blue-800 mb-2">${item.nama}</h3>
+                    <p class="text-gray-600 text-sm mb-4"><span class="font-semibold text-gray-700 italic">Alamat:</span> ${item.alamat}</p>
+                    <p class="text-gray-500 text-sm mb-6">${item.deskripsi || ''}</p>
+                    <a href="${item.link_map || '#'}" target="_blank" class="inline-flex items-center text-blue-600 font-semibold hover:underline">
+                        Lihat di Google Maps 
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                </div>
+            `).join('');
         }
 
-        document.getElementById('updateForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const newItem = {
-                id: Date.now(),
-                name: document.getElementById('nameInput').value,
-                category: document.getElementById('categoryInput').value,
-                address: document.getElementById('addressInput').value,
-                source: "User Update"
-            };
-            localData.unshift(newItem);
-            saveData();
-            e.target.reset();
-        });
-
-        function deleteItem(id) {
-            localData = localData.filter(item => item.id !== id);
-            saveData();
+        function handleCustomSearch() {
+            const query = document.getElementById('customSearch').value;
+            if (query.trim()) {
+                fetchData(query);
+            }
         }
-
-        renderData();
     </script>
 </body>
 </html>
